@@ -1,8 +1,6 @@
 from django.conf import settings
 from django.core.exceptions import PermissionDenied
-from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect
-from django.utils import timezone
 from django.views.generic import (
     CreateView, DeleteView, DetailView, ListView, UpdateView
 )
@@ -15,7 +13,7 @@ from blog.models import Category, Post
 
 
 class PostListView(PostModelMixin, ListView):
-    queryset = Post.posts.visible_posts()
+    queryset = Post.published.with_comments()
     template_name = 'blog/list.html'
     paginate_by = settings.POSTS_ON_PAGE
 
@@ -24,17 +22,11 @@ class PostDetailView(PostModelMixin, DetailView):
     template_name = 'blog/detail.html'
 
     def get_object(self):
-        return get_object_or_404(Post.posts.enriched_posts(),
-                                 pk=self.kwargs['pk'])
-
-    def dispatch(self, request, *args, **kwargs):
-        post = self.get_object()
-        if (post.author != request.user
-            and (not post.is_published
-                 or not post.category.is_published
-                 or post.pub_date > timezone.now())):
-            raise Http404
-        return super().dispatch(request, *args, **kwargs)
+        post_id = self.kwargs['pk']
+        author_id = get_object_or_404(Post, pk=post_id).author_id
+        if (author_id == self.request.user.id):
+            return Post.detailed.get(pk=post_id)
+        return get_object_or_404(Post.published, pk=post_id)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -81,7 +73,7 @@ class CategoryListView(PostModelMixin, ListView):
 
     def get_queryset(self):
         return self.category.posts(
-            manager='posts').visible_posts()
+            manager='published').with_comments()
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

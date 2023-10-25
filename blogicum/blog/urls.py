@@ -36,6 +36,6 @@ urlpatterns = [
          profile_views.ProfileDetailView.as_view(),
          name='profile'),
     path('profile_edit/',
-         profile_views.profile_edit,
+         profile_views.ProfileEditView.as_view(),
          name='edit_profile')
 ]

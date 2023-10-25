@@ -6,12 +6,10 @@ from .models import Category, Comment, Location, Post, User
 
 
 class PostForm(forms.ModelForm):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields['category'] = forms.ModelChoiceField(
-            queryset=Category.objects.filter(is_published=True))
-        self.fields['location'] = forms.ModelChoiceField(
-            queryset=Location.objects.filter(is_published=True))
+    category = forms.ModelChoiceField(
+        queryset=Category.objects.filter(is_published=True))
+    location = forms.ModelChoiceField(
+        queryset=Location.objects.filter(is_published=True))
 
     class Meta:
         model = Post

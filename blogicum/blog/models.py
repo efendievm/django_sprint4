@@ -39,37 +39,35 @@ class Category(BaseModel):
         return self.title
 
 
-class PostQueryset(models.QuerySet):
-    def enriched_posts(self):
+class AddCommentsMixin():
+    def with_comments(self):
+        return self.get_queryset().annotate(comment_count=Count('comments'))
+
+
+class PostDetailedQueryset(models.QuerySet):
+    def detailed(self):
         return self.select_related(
             'location',
             'author',
-            'category')
+            'category').order_by('-pub_date')
 
-    def authors_posts(self):
-        return self.enriched_posts().annotate(
-            comment_count=Count('comments')
-        ).order_by('-pub_date')
 
-    def visible_posts(self):
-        return self.authors_posts().filter(
+class PostPublishedQueryset(PostDetailedQueryset):
+    def published(self):
+        return self.detailed().filter(
             pub_date__lte=datetime.now(),
             is_published=True,
             category__is_published=True)
 
 
-class PostManager(models.Manager):
+class PostDetailedManager(AddCommentsMixin, models.Manager):
     def get_queryset(self):
-        return PostQueryset(self.model)
+        return PostDetailedQueryset(self.model).detailed()
 
-    def enriched_posts(self):
-        return self.get_queryset().enriched_posts()
 
-    def authors_posts(self):
-        return self.get_queryset().authors_posts()
-
-    def visible_posts(self):
-        return self.get_queryset().visible_posts()
+class PostPublishedManager(AddCommentsMixin, models.Manager):
+    def get_queryset(self):
+        return PostPublishedQueryset(self.model).published()
 
 
 class Post(BaseModel):
@@ -83,6 +81,7 @@ class Post(BaseModel):
     author = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
+        related_name='posts',
         verbose_name='Автор публикации'
     )
     location = models.ForeignKey(
@@ -99,8 +98,9 @@ class Post(BaseModel):
         verbose_name='Категория'
     )
     image = models.ImageField('Фото', upload_to='posts_images', blank=True)
-    objects = models.Manager()
-    posts = PostManager()
+    objects = models.QuerySet.as_manager()
+    detailed = PostDetailedManager()
+    published = PostPublishedManager()
 
     class Meta:
         verbose_name = 'публикация'
@@ -111,15 +111,10 @@ class Post(BaseModel):
 
 
 class CommentWithAuthorQueryset(models.QuerySet):
-    def comments(self):
+    def with_author(self):
         return self.select_related(
             'author'
         ).order_by('created_at')
-
-
-class CommentWithAuthorManager(models.Manager):
-    def get_queryset(self):
-        return CommentWithAuthorQueryset(self.model).comments()
 
 
 class Comment(models.Model):
@@ -135,8 +130,8 @@ class Comment(models.Model):
         verbose_name='Автор комментария'
     )
     created_at = models.DateTimeField(auto_now_add=True)
-    objects = models.Manager()
-    with_author = CommentWithAuthorManager()
+    objects = models.QuerySet.as_manager()
+    with_author = CommentWithAuthorQueryset.as_manager()
 
     class Meta:
         ordering = ('created_at',)

@@ -1,7 +1,6 @@
 from django.conf import settings
-from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.shortcuts import get_object_or_404, redirect, render
+from django.shortcuts import get_object_or_404
 from django.urls import reverse_lazy
 from django.views.generic import ListView, UpdateView
 
@@ -19,11 +18,9 @@ class ProfileDetailView(ListView):
         return super().dispatch(request, *args, **kwargs)
 
     def get_queryset(self):
-        queryset = Post.posts.filter(author=self.profile)
-        if self.profile == self.request.user:
-            return queryset.authors_posts()
-        else:
-            return queryset.visible_posts()
+        manager = ('detailed' if self.profile == self.request.user else
+                   'published')
+        return self.profile.posts(manager=manager).with_comments()
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -33,22 +30,16 @@ class ProfileDetailView(ListView):
 
 class ProfileEditView(LoginRequiredMixin, UpdateView):
     model = User
-    fields = ('first_name', 'last_name', 'email')
+    form_class = UserForm
     template_name = 'blog/user.html'
 
-    def get_succes_url(self):
-        return reverse_lazy(
-            'blog:profile',
-            kwargs={'pk': self.request.GET.get('pk')})
+    def get_object(self):
+        return User.objects.get(pk=self.request.user.id)
 
+    def form_valid(self, form):
+        self.username = form.cleaned_data['username']
+        return super().form_valid(form)
 
-@login_required
-def profile_edit(request):
-    form = UserForm(request.POST or None, instance=request.user)
-    context = {'form': form}
-    if form.is_valid():
-        form.save()
-        return redirect(
-            reverse_lazy('blog:profile',
-                         kwargs={'username': request.user.username}))
-    return render(request, 'blog/user.html', context)
+    def get_success_url(self):
+        return reverse_lazy('blog:profile',
+                            kwargs={'username': self.username})
