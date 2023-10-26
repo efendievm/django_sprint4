@@ -24,14 +24,14 @@ class PostDetailView(PostModelMixin, DetailView):
     def get_object(self):
         post_id = self.kwargs['pk']
         author_id = get_object_or_404(Post, pk=post_id).author_id
-        if (author_id == self.request.user.id):
+        if author_id == self.request.user.id:
             return Post.detailed.get(pk=post_id)
         return get_object_or_404(Post.published, pk=post_id)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['form'] = CommentForm()
-        context['comments'] = self.object.comments(manager='with_author').all()
+        context['comments'] = self.object.comments(manager='detailed').all()
         return context
 
 
@@ -51,7 +51,7 @@ class PostEditView(PostsUpdateMixin, PostRedirectToSelfMixin, UpdateView):
 
 class PostDeleteView(PostsUpdateMixin, PostRedirectToProfileMixin, DeleteView):
     def dispatch(self, request, *args, **kwargs):
-        self.instance = get_object_or_404(Post, pk=kwargs['pk'])
+        self.instance = self.get_object()
         if self.instance.author != request.user:
             raise PermissionDenied
         return super().dispatch(request, *args, **kwargs)

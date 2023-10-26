@@ -98,7 +98,7 @@ class Post(BaseModel):
         verbose_name='Категория'
     )
     image = models.ImageField('Фото', upload_to='posts_images', blank=True)
-    objects = models.QuerySet.as_manager()
+    objects = models.Manager()
     detailed = PostDetailedManager()
     published = PostPublishedManager()
 
@@ -110,7 +110,7 @@ class Post(BaseModel):
         return self.title
 
 
-class CommentWithAuthorQueryset(models.QuerySet):
+class CommentQueryset(models.QuerySet):
     def with_author(self):
         return self.select_related(
             'author'
@@ -130,8 +130,8 @@ class Comment(models.Model):
         verbose_name='Автор комментария'
     )
     created_at = models.DateTimeField(auto_now_add=True)
-    objects = models.QuerySet.as_manager()
-    with_author = CommentWithAuthorQueryset.as_manager()
+    objects = models.Manager()
+    detailed = CommentQueryset.as_manager()
 
     class Meta:
         ordering = ('created_at',)
